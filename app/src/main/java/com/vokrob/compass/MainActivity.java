@@ -18,6 +18,8 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     private TextView tvDegree;
     private float current_degree = 0f;
     private SensorManager sensorManager;
+    private float[] gravity;
+    private float[] geomagnetic;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -31,14 +33,13 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         ivDinamic = findViewById(R.id.ivDinamic);
         tvDegree = findViewById(R.id.tvDegree);
         sensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
-
     }
 
     @Override
     protected void onResume() {
         super.onResume();
-        sensorManager.registerListener(this, sensorManager.getDefaultSensor(Sensor.TYPE_ORIENTATION), SensorManager.SENSOR_DELAY_GAME);
-
+        sensorManager.registerListener(this, sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER), SensorManager.SENSOR_DELAY_GAME);
+        sensorManager.registerListener(this, sensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD), SensorManager.SENSOR_DELAY_GAME);
     }
 
     @Override
@@ -49,30 +50,37 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
 
     @Override
     public void onSensorChanged(SensorEvent event) {
-        float degree = Math.round(event.values[0]);
+        if (event.sensor.getType() == Sensor.TYPE_ACCELEROMETER) {
+            gravity = event.values;
+        } else if (event.sensor.getType() == Sensor.TYPE_MAGNETIC_FIELD) {
+            geomagnetic = event.values;
+        }
 
-        tvDegree.setText("Degree from North: " + Float.toString(degree) + " degrees");
+        if (gravity != null && geomagnetic != null) {
+            float[] R = new float[9];
+            float[] I = new float[9];
+            if (SensorManager.getRotationMatrix(R, I, gravity, geomagnetic)) {
+                float[] orientation = new float[3];
+                SensorManager.getOrientation(R, orientation);
+                float degree = (float) Math.toDegrees(orientation[0]);
+                degree = (degree + 360) % 360; // Нормализация до диапазона 0-360
 
+                tvDegree.setText("Degree from North: " + Float.toString(degree) + " degrees");
 
-        RotateAnimation ra = new RotateAnimation(current_degree, -degree, Animation.RELATIVE_TO_SELF, 0.5f, Animation.RELATIVE_TO_SELF, 0.5f);
-
-        ra.setDuration(210);
-
-        ra.setFillAfter(true);
-
-        ivDinamic.startAnimation(ra);
-        current_degree = -degree;
-
+                RotateAnimation ra = new RotateAnimation(current_degree, -degree, Animation.RELATIVE_TO_SELF,
+                        0.5f, Animation.RELATIVE_TO_SELF, 0.5f);
+                ra.setDuration(210);
+                ra.setFillAfter(true);
+                ivDinamic.startAnimation(ra);
+                current_degree = -degree;
+            }
+        }
     }
 
     @Override
     public void onAccuracyChanged(Sensor sensor, int accuracy) {
-
     }
 }
-
-
-
 
 
 
